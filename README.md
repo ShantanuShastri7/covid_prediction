@@ -70,7 +70,7 @@ from keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 df_test=pd.read_csv(r'C:\Users\User1\OneDrive\Desktop\CovidProject\test.txt',sep=" ")
 df_test.head()
 ```
-![.](../media/1.PNG?raw=true)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/media/1.PNG?raw=true)
 
 ### Giving column names to the data
 ```python
