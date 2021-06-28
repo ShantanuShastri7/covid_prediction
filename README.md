@@ -29,7 +29,7 @@ When it comes to CNNs we have two options
 
 First we'll take VGG-16 which is pre trained model that won the ImageNet challenge, the architecture is given below
 
-![VGG16](https://neurohive.io/wp-content/uploads/2018/11/vgg16-1-e1542731207177.png) 
+![VGG16](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/1.PNG) 
 
 Next we'll make a CNN of our own and train it from scratch on our data set, I'll be sharing the architecture in the code 
 
