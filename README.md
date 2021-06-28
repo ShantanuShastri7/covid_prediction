@@ -42,7 +42,6 @@ So to check for accuracies in different model and pre processing, we will be tra
 #### For the accuracy of the test set, I'll be using my test images on the validation parameter instead of dividing my training data into two parts.
 
 ### Importing required libraries
-
 ```python
 import numpy as np
 import pandas as pd
@@ -66,3 +65,447 @@ from keras.utils import to_categorical
 from keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 ```
 
+### Loading the dataset's name and results text file 
+```python
+df_test=pd.read_csv(r'C:\Users\User1\OneDrive\Desktop\CovidProject\test.txt',sep=" ")
+df_test.head()
+```
+![.](1.PNG)
+
+### Giving column names to the data
+```python
+df_test.columns=["id","file name","class","data source"]
+df_test.head()
+```
+![.](2.PNG)
+
+```python
+df_train=pd.read_csv(r'C:\Users\User1\OneDrive\Desktop\CovidProject\train.txt',sep=" ")
+df_train.columns=["id","file name","class","data source"]
+```
+
+### Checking for null values 
+```python
+df_train.isnull().sum()
+```
+![.](3.PNG)
+
+```python
+df_test.isnull().sum()
+```
+![.](4.PNG)
+
+```python
+df_train["class"].unique()
+```
+![.](5.PNG)
+
+```python
+df_train["class"].value_counts()
+```
+![.](6.PNG)
+
+```python
+df_test["class"].value_counts()
+```
+![.](7.PNG)
+
+## 1-Transfer Learning on VGG-16 without Data Augmentation
+
+### Making another data frame with all the negative samples
+```python
+df_train_negative=df_train[df_train["class"]=="negative"]
+df_train_negative.shape
+```
+![.](8.PNG)
+
+```python
+df_train.drop(df_train[df_train["class"]=="negative"].index,inplace=True)
+df_train["class"].value_counts()
+```
+![.](9.PNG)
+
+### Randomly sampling data from negative samples to equal the number of positive samples 
+```python
+df_train_negative=df_train_negative.sample(n=2158,replace=False,random_state=5)
+df_train_negative["class"].value_counts()
+```
+![.](9.PNG)
+
+### Concatinating the positive and negative samples 
+```python
+df_train_reduced=pd.concat([df_train,df_train_negative],axis=0)
+df_train_reduced["class"].value_counts()
+```
+![.](10.PNG)
+
+```python
+df_train_reduced=df_train_reduced.sample(frac=1)
+```
+
+### Re-shuffling positve and negative samples 
+```python
+df_train=df_train_reduced
+df_train["class"].value_counts()
+```
+![.](11.PNG)
+
+### Dropping unnecessary columns from the data set
+```python
+df_test.drop(["id","data source"],axis=1,inplace=True)
+df_train.drop(["id","data source"],axis=1,inplace=True)
+df_train.head()
+```
+![.](12.PNG)
+
+```python
+df_test.head()
+```
+![.](13.PNG)
+
+### Importing the VGG-16 model along with the weights for transfer learning 
+```python
+from tensorflow.keras.applications.vgg16 import VGG16
+base_model = VGG16(input_shape = (224, 224, 3), # Shape of our images
+include_top = False, # Leave out the last fully connected layer
+weights = 'imagenet')
+```
+```python
+base_model.summary()
+```
+![.](14.PNG)
+
+### Setting the training of all the layers in the base model to False and using the pre trained weights
+```python
+for layer in base_model.layers:
+    layer.trainable = False
+```
+
+### Copying the files from the training data folder to 2 different folders names 'positive' and 'negative' under the main training folder 
+```python
+s="C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\train\\"
+
+import shutil, os
+for (f,c) in zip(df_train["file name"],df_train["class"]):
+        if c=="positive":
+            shutil.copy(s+f, 'C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\train_final\\positive')
+        else:
+            shutil.copy(s+f, 'C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\train_final\\negative')
+```
+
+### Re-scaling the RGB values between 0-1 for faster training and better accuracy
+```python
+train_datagen = ImageDataGenerator( rescale = 1.0/255. )
+valid_datagen = ImageDataGenerator( rescale = 1.0/255. )
+
+train_dir="C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\train_final"
+validation_dir="C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\validation"
+```
+
+### Initialising Image generator for feeding training and validation image samples to the model
+```python
+train_generator = train_datagen.flow_from_directory(train_dir, batch_size = 50, class_mode = 'binary', target_size = (224, 224))
+```
+![.](15.PNG)
+
+```python
+validation_generator = valid_datagen.flow_from_directory( validation_dir,  batch_size = 50, class_mode = 'binary', target_size = (224, 224))
+```
+![.](16.PNG)
+
+### Adding layers in the end to classify images as positive and negative (Binary Classification) using sigmoid function
+```python
+
+# Flatten the output layer to 1 dimension
+x = layers.Flatten()(base_model.output)
+
+# Add a fully connected layer with 512 hidden units and ReLU activation
+x = layers.Dense(512, activation='relu')(x)
+
+# Add a dropout rate of 0.5
+x = layers.Dropout(0.5)(x)
+
+# Add a final sigmoid layer for classification
+x = layers.Dense(1, activation='sigmoid')(x)
+
+model = tf.keras.models.Model(base_model.input, x)
+
+model.compile(optimizer = tf.keras.optimizers.RMSprop(lr=0.0001), loss = 'binary_crossentropy',metrics = ['acc'])
+```
+```python
+model.summary()
+```
+![.](17.PNG)
+
+### Training
+```python
+vgghist = model.fit(train_generator, validation_data=validation_generator, steps_per_epoch = 87, epochs = 10)
+```
+![.](18.PNG)
+
+### Plotting Training and Validation accuracy and loss
+```python
+train_acc= vgghist.history['acc']
+train_loss = vgghist.history['loss']
+valid_acc= vgghist.history['val_acc']
+valid_loss= vgghist.history['val_loss']
+```
+```python
+plt.figure(figsize=(15, 15))
+plt.subplot(2, 2, 1)
+plt.plot(train_acc, label='Training Accuracy')
+plt.plot(valid_acc,label='Validation Accuracy')
+plt.title('Training and Validation Accuracy')
+plt.legend()
+plt.subplot(2,2,2)
+plt.plot(train_loss, label='Training Loss')
+plt.plot(valid_loss,label='Validation Loss')
+plt.title('Training and Validation Loss')
+plt.legend()
+```
+![.](19.PNG)
+
+#### The accuracy begins with 77% and goes up to 95.67% in the last epoch and on the test set we have a max. accuracy of 96.5%.  Because of Transfer Learning we are able to get such high accuracies even without Data Augmentation
+```python
+model.save("model_vgg.h5")
+```
+
+## 2-Transfer Learning on VGG-16 with Data Augmentation
+
+### Loading the data set again with all samples
+```python
+df_train_VGG_A=pd.read_csv(r'C:\Users\User1\OneDrive\Desktop\CovidProject\train.txt',sep=" ")
+df_train_VGG_A.columns=["id","file name","class","data source"]
+df_train_VGG_A.drop(["id","data source"],axis=1,inplace=True)
+df_train_VGG_A.head()
+```
+![.](20.PNG)
+
+### Giving ImageDataGenerator parameters for doing Data Augmentation
+1. Rotation Range of 20 degrees which is close to human error while taking photos
+2. width_shift_range 0f .1 for minor horizontal shifts 
+3. height_shift_range of .1 for minor vertical shifts
+4. zoom range of .1 for minor zoomed in images 
+
+ ```python
+ datagen = ImageDataGenerator(rotation_range = 20, width_shift_range = 0.1, height_shift_range = 0.1, zoom_range = 0.1)
+ df_train_VGG_A.drop(df_train_VGG_A[df_train_VGG_A["class"]=="negative"].index,inplace=True)
+ ```
+ 
+ ### Giving Image Generator images in batches of 1000 and saving the generated images
+
+( Because my RAM was over flowing after 1K images at a go)
+
+```python
+df_train_VGG_A_0_1000=df_train_VGG_A[:1000]
+df_train_VGG_A_1000_2000=df_train_VGG_A[1000:2000]
+df_train_VGG_A_2000_2158=df_train_VGG_A[2000:2159]
+```
+```python
+t='C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\train\\'
+for f in df_train_VGG_A_0_1000['file name']:
+    img=load_img(t+f)
+    x=img_to_array(img)
+    x=x.reshape((1,)+x.shape)
+    i = 0
+    for batch in datagen.flow(x, batch_size = 1,
+                          save_to_dir ='C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\train_augmented', 
+                          save_prefix =(f[:len(f)-5]+str(i)), save_format ='jpeg'):
+            i += 1
+            if i > 5:
+                break
+ ```
+ ### Importing the VGG-16 model along with the weights for transfer learning  
+ ```python
+ from tensorflow.keras.applications.vgg16 import VGG16
+
+base_model = VGG16(input_shape = (224, 224, 3), # Shape of our images
+include_top = False, # Leave out the last fully connected layer
+weights = 'imagenet')
+```
+```python
+base_model.summary()
+```
+![.](21.PNG)
+
+### Setting the training of all the layers in the base model to False and using the pre trained weights
+```python
+for layer in base_model.layers:
+    layer.trainable = False
+```
+
+### Re-scaling the RGB values between 0-1 for faster training and better accuracy
+```python
+train_datagen = ImageDataGenerator( rescale = 1.0/255. )
+valid_datagen = ImageDataGenerator( rescale = 1.0/255. )
+```
+
+### Initialising Image generator for feeding training and validation image samples to the model
+```python
+train_dir="C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\train_final_DA"
+validation_dir="C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\validation"
+```
+```python
+train_generator = train_datagen.flow_from_directory(train_dir, batch_size = 20, class_mode = 'binary', target_size = (224, 224))
+```
+![.](22.PNG)
+
+```python
+validation_generator = valid_datagen.flow_from_directory(validation_dir,  batch_size = 20, class_mode = 'binary', target_size = (224, 224))
+```
+![.](23.PNG)
+
+### Adding layers in the end to classify images as positive and negative (Binary Classification) using sigmoid function
+```python
+
+# Flatten the output layer to 1 dimension
+x = layers.Flatten()(base_model.output)
+
+# Add a fully connected layer with 512 hidden units and ReLU activation
+x = layers.Dense(512, activation='relu')(x)
+
+# Add a dropout rate of 0.5
+x = layers.Dropout(0.5)(x)
+
+# Add a final sigmoid layer for classification
+x = layers.Dense(1, activation='sigmoid')(x)
+
+model_vgg_da = tf.keras.models.Model(base_model.input, x)
+
+model_vgg_da.compile(optimizer = tf.keras.optimizers.RMSprop(lr=0.0001), loss = 'binary_crossentropy',metrics = ['acc'])
+```
+```python
+model_vgg_da.summary()
+```
+![.](24.PNG)
+
+### Training
+```python
+vgg_A_hist = model_vgg_da.fit(train_generator, validation_data=validation_generator, steps_per_epoch = 117, epochs = 10)
+```
+![.](25.PNG)
+
+### Plotting Training and Validation accuracy and loss
+```python
+train_acc= vgg_A_hist.history['acc']
+train_loss = vgg_A_hist.history['loss']
+valid_acc= vgg_A_hist.history['val_acc']
+valid_loss= vgg_A_hist.history['val_loss']
+```
+```python
+plt.figure(figsize=(15, 15))
+plt.subplot(2, 2, 1)
+plt.plot(train_acc, label='Training Accuracy')
+plt.plot(valid_acc,label='Validation Accuracy')
+plt.title('Training and Validation Accuracy')
+plt.legend()
+plt.subplot(2,2,2)
+plt.plot(train_loss, label='Training Loss')
+plt.plot(valid_loss,label='Validation Loss')
+plt.title('Training and Validation Loss')
+plt.legend()
+```
+![.](26.PNG)
+
+#### Accuracy on the training set started from 85% and went up to 96.67%, on the test set we had a max. accuracy of 87.25%.  As per the theory we should have got an increase in the accuracy after data augmentation, but that wasn't the case. My prediction being that-We generated around 10K positive samples from 2158 samples so the model might have over fitted and hence a reduced accuracy
+```python
+model_vgg_da.save("model_vgg_da.h5")
+```
+
+## 3-Training a CNN from scratch without Data Augmentation
+
+### Iniatialising a sequential model
+```python
+model_cnn=Sequential()
+```
+### Adding the required layers
+```python
+    model_cnn.add(Conv2D(64, (3, 3), padding='same', activation='relu', input_shape=(224,224,3)))
+    model_cnn.add(Conv2D(64, (3, 3), padding='same', activation='relu'))
+    model_cnn.add(MaxPooling2D(pool_size=(2, 2)))
+    model_cnn.add(Dropout(0.25))
+
+    model_cnn.add(Conv2D(128, (3, 3), padding='same', activation='relu'))
+    model_cnn.add(Conv2D(128, (3, 3), padding='same', activation='relu'))
+    model_cnn.add(MaxPooling2D(pool_size=(2, 2)))
+    model_cnn.add(Dropout(0.25))
+
+    model_cnn.add(Conv2D(256, (3, 3), padding='same', activation='relu'))
+    model_cnn.add(Conv2D(256, (3, 3), padding='same', activation='relu'))
+    model_cnn.add(MaxPooling2D(pool_size=(2, 2)))
+    model_cnn.add(Dropout(0.25))
+
+    model_cnn.add(Conv2D(512, (3, 3), padding='same', activation='relu'))
+    model_cnn.add(Conv2D(512, (3, 3), padding='same', activation='relu'))
+    model_cnn.add(MaxPooling2D(pool_size=(2, 2)))
+    model_cnn.add(Dropout(0.25))
+    
+    model_cnn.add(Flatten())
+    model_cnn.add(Dense(512, activation='relu'))
+    model_cnn.add(Dropout(0.5))
+    model_cnn.add(Dense(1, activation='sigmoid'))
+```
+```python
+model_cnn.compile(optimizer = tf.keras.optimizers.RMSprop(lr=0.0001), loss = 'binary_crossentropy',metrics = ['acc'])
+```
+```python
+model_cnn.summary()
+```
+![.](27.PNG)
+
+### Re-scaling the RGB values between 0-1 for faster training and better accuracy
+```python
+train_datagen = ImageDataGenerator( rescale = 1.0/255. )
+valid_datagen = ImageDataGenerator( rescale = 1.0/255. )
+```
+
+### Initialising Image generator for feeding training and validation image samples to the model
+```python
+train_dir="C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\train_final"
+validation_dir="C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\validation"
+```
+```python
+train_generator = train_datagen.flow_from_directory(train_dir, batch_size = 50, class_mode = 'binary', target_size = (224, 224))
+```
+![.](28.PNG)
+
+```python
+validation_generator = valid_datagen.flow_from_directory(validation_dir,  batch_size = 20, class_mode = 'binary', target_size = (224, 224))
+```
+![.](29.PNG)
+
+### Training
+```python
+trialmodel = model_cnn.fit(train_generator, validation_data = validation_generator, steps_per_epoch=86, epochs = 10)
+```
+![.](30.PNG)
+
+### Plotting Training and Validation accuracy and loss
+```python
+train_acc=trialmodel.history['acc']
+train_loss = trialmodel.history['loss']
+valid_acc=trialmodel.history['val_acc']
+valid_loss=trialmodel.history['val_loss']
+```
+```python
+plt.figure(figsize=(15, 15))
+plt.subplot(2, 2, 1)
+plt.plot(train_acc, label='Training Accuracy')
+plt.plot(valid_acc,label='Validation Accuracy')
+plt.title('Training and Validation Accuracy')
+plt.legend()
+plt.subplot(2,2,2)
+plt.plot(train_loss, label='Training Loss')
+plt.plot(valid_loss,label='Validation Loss')
+plt.title('Training and Validation Loss')
+plt.legend()
+```
+![.](31.PNG)
+
+#### Accuracy on the training set started from 65.64% and went up to 93% and on the test set max. accuracy was 91%
+```python
+model_cnn.save("model_cnn.h5")
+```
+
+![.](32.PNG)
+## Best Accuracy was given by VGG-16 without using Data Augmentation
