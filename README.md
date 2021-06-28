@@ -148,7 +148,7 @@ df_train_reduced=df_train_reduced.sample(frac=1)
 df_train=df_train_reduced
 df_train["class"].value_counts()
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/10.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/11.PNG)
 
 ### Dropping unnecessary columns from the data set
 ```python
@@ -156,12 +156,12 @@ df_test.drop(["id","data source"],axis=1,inplace=True)
 df_train.drop(["id","data source"],axis=1,inplace=True)
 df_train.head()
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/11.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/12.PNG)
 
 ```python
 df_test.head()
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/12.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/13.PNG)
 
 ### Importing the VGG-16 model along with the weights for transfer learning 
 ```python
@@ -173,7 +173,7 @@ weights = 'imagenet')
 ```python
 base_model.summary()
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/13.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/14.PNG)
 
 ### Setting the training of all the layers in the base model to False and using the pre trained weights
 ```python
@@ -206,12 +206,12 @@ validation_dir="C:\\Users\\User1\\OneDrive\\Desktop\\CovidProject\\validation"
 ```python
 train_generator = train_datagen.flow_from_directory(train_dir, batch_size = 50, class_mode = 'binary', target_size = (224, 224))
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/14.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/15.PNG)
 
 ```python
 validation_generator = valid_datagen.flow_from_directory( validation_dir,  batch_size = 50, class_mode = 'binary', target_size = (224, 224))
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/15.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/16.PNG)
 
 ### Adding layers in the end to classify images as positive and negative (Binary Classification) using sigmoid function
 ```python
@@ -235,13 +235,13 @@ model.compile(optimizer = tf.keras.optimizers.RMSprop(lr=0.0001), loss = 'binary
 ```python
 model.summary()
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/16.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/17.PNG)
 
 ### Training
 ```python
 vgghist = model.fit(train_generator, validation_data=validation_generator, steps_per_epoch = 87, epochs = 10)
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/17.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/18.PNG)
 
 ### Plotting Training and Validation accuracy and loss
 ```python
@@ -263,7 +263,7 @@ plt.plot(valid_loss,label='Validation Loss')
 plt.title('Training and Validation Loss')
 plt.legend()
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/18.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/19.PNG)
 
 #### The accuracy begins with 77% and goes up to 95.67% in the last epoch and on the test set we have a max. accuracy of 96.5%.  Because of Transfer Learning we are able to get such high accuracies even without Data Augmentation
 ```python
@@ -279,7 +279,7 @@ df_train_VGG_A.columns=["id","file name","class","data source"]
 df_train_VGG_A.drop(["id","data source"],axis=1,inplace=True)
 df_train_VGG_A.head()
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/19.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/20.PNG)
 
 ### Giving ImageDataGenerator parameters for doing Data Augmentation
 1. Rotation Range of 20 degrees which is close to human error while taking photos
@@ -326,7 +326,7 @@ weights = 'imagenet')
 ```python
 base_model.summary()
 ```
-![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/20.PNG)
+![.](https://github.com/ShantanuShastri7/covid_prediction/blob/main/media/21.PNG)
 
 ### Setting the training of all the layers in the base model to False and using the pre trained weights
 ```python
